@@ -1,7 +1,10 @@
 package kafkabp
 
 import (
+	"time"
+
 	"github.com/Shopify/sarama"
+	"github.com/reddit/baseplate.go/log"
 )
 
 // ConsumerConfig can be used to configure a kafkabp Consumer.
@@ -10,7 +13,7 @@ import (
 //
 // Example:
 //
-// kafka:
+// kafkaConsumer:
 //   brokers:
 //     - 127.0.0.1:9090
 //     - 127.0.0.2:9090
@@ -36,8 +39,8 @@ type ConsumerConfig struct {
 	Offset string `yaml:"offset"`
 }
 
-// NewSaramaConfig instantiates a sarama.Config with sane defaults from
-// sarama.NewConfig(), overwritten by values parsed from cfg.Overrides.
+// NewSaramaConfig instantiates a sarama.Config with sane consumer defaults
+// from sarama.NewConfig(), overwritten by values parsed from cfg.
 func (cfg *ConsumerConfig) NewSaramaConfig() (*sarama.Config, error) {
 	c := sarama.NewConfig()
 
@@ -69,6 +72,41 @@ func (cfg *ConsumerConfig) NewSaramaConfig() (*sarama.Config, error) {
 	default:
 		return nil, ErrOffsetInvalid
 	}
+
+	return c, nil
+}
+
+// ProducerConfig can be used to configure a kafkabp Producer.
+//
+// Can be deserialized from YAML.
+//
+// Example:
+//
+// kafkaProducer:
+//   brokers:
+//     - 127.0.0.1:9090
+//     - 127.0.0.2:9090
+type ProducerConfig struct {
+	// Required. Brokers specifies a slice of broker addresses.
+	Brokers []string `yaml:"brokers"`
+
+	// Optional. When non-nil, it will be used to log errors.
+	Logger log.Wrapper
+}
+
+// NewSaramaConfig instantiates a sarama.Config with sane producer defaults
+// from sarama.NewConfig(), overwritten by values parsed from cfg.
+func (cfg *ProducerConfig) NewSaramaConfig() (*sarama.Config, error) {
+	c := sarama.NewConfig()
+
+	// Only wait for the leader to ack a Publish call.
+	c.Producer.RequiredAcks = sarama.WaitForLocal
+
+	// Leave messages uncompressed.
+	c.Producer.Compression = sarama.CompressionNone
+
+	// Flush batches every 100ms.
+	c.Producer.Flush.Frequency = 100 * time.Millisecond
 
 	return c, nil
 }
